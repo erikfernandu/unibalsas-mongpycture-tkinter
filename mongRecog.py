@@ -11,12 +11,26 @@ recognizer = cv2.createLBPHFaceRecognizer()
 
 imagens = []
 
-def prepareImages(imagem_atual):
+def prepareImages(path_images, labels, number, vid_or_pic):
+    for imagem_atual in path_images:
         imagem_pil = Image.open(imagem_atual).convert('L')
         imagem = np.array(imagem_pil, 'uint8')
-	faces = faceCascade.detectMultiScale(imagem)
-	for (x, y, w, h) in faces:
-	    imagens.append(imagem[y: y + h, x: x + w])
+        faces = faceCascade.detectMultiScale(imagem)
+        for (x, y, w, h) in faces:
+            imagens.append(imagem[y: y + h, x: x + w])
+            labels.append(number)
+    return labels
+
+def prepareImagesVid(path_images, labels, number, vid_or_pic):
+    for imagem_atual in path_images:
+        imagem_pil = Image.open(imagem_atual).convert('L')
+        imagem = np.array(imagem_pil, 'uint8')
+        faces = faceCascade.detectMultiScale(imagem)
+        for (x, y, w, h) in faces:
+            imagens.append(imagem[y: y + h, x: x + w])
+            labels.append(number)
+    return labels
+
 
 #def updateTrain(path_images, numberLab):
 #    l_images=[]
@@ -32,7 +46,6 @@ def prepareImages(imagem_atual):
 #        recognizer.update(l_images, np.array(l_labels))
 
 def faceRecognition(findFace, labels, vid_or_pic):
-    print labels
     recognizer.train(imagens, np.array(labels))
     if vid_or_pic ==1:
         predict_image_pil = Image.open(findFace).convert('L')
@@ -41,6 +54,7 @@ def faceRecognition(findFace, labels, vid_or_pic):
     predict_image = np.array(predict_image_pil, 'uint8')
     faces = faceCascade.detectMultiScale(predict_image)
     for (x, y, w, h) in faces:
-        nbr_predicted, conf = recognizer.predict(predict_image[y: y + h, x: x + w])        
-    return nbr_predicted, conf
+        nbr_predicted, conf = recognizer.predict(predict_image[y: y + h, x: x + w])
+
+        return nbr_predicted, conf
 

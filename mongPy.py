@@ -5,7 +5,12 @@ import Tkinter, tkMessageBox, tkFileDialog, ttk, cv2, time
 import mongDao as dao
 from PIL import ImageTk, Image
 
+faceCascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
 def app():
+    dao.startUp()
+
+
+    # Frames
     def blankFrames(frames):
         slaves = frames.pack_slaves()
         for widget in slaves:
@@ -15,6 +20,8 @@ def app():
 	blankFrames(frame2)
 	blankFrames(frame3)
         closeWebcam()
+
+    # Camera
     def openWebcam():
         def webcamActivated():
             _, videoframe = cap.read()
@@ -37,8 +44,8 @@ def app():
 	cap.set(3, 500)
 	cap.set(4, 300)
 	dao.statusCam = True
+	insertButtonVid()
 	webcamActivated()
-
     def closeWebcam():
 	if dao.statusCam == True:
 	    dao.statusCam = False
@@ -47,7 +54,16 @@ def app():
 	    cap.release()
 
     def getScreen():
-	print "Botao sem funcionalidade"
+        faces = faceCascade.detectMultiScale(imageGray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30), flags = cv2.cv.CV_HAAR_SCALE_IMAGE)
+        try:
+	    for f in faces:
+                x, y, w, h = [ v for v in f ]
+	        #if tbname.get()!="" and tbage.get()!="":
+                foundFace = cv2.resize(imageGray[y:y+h, x:x+w], (300,300))
+		dao.insertDataVid(foundFace, tbname.get(), tbage.get())
+	        #cv2.imwrite("erik"+str(x)+".jpg", foundFace)
+	except:
+            print "Nao foi possivel capturar a imagem"
 
     def selectData():
 	if option.get()==1:
@@ -59,15 +75,21 @@ def app():
 			path = tkFileDialog.askdirectory(parent=mainWin,initialdir="./faces",title='Escolha de diretorio')
 			if path != "":
 			    dao.insertData(path, tbname.get(), tbage.get())
+			    blankFrames(frame1)
+			    blankFrames(frame2)
+			    blankFrames(frame3)
 		    else:
-			print "Camera ativada"
-		    blankFrames(frame1)
-		    blankFrames(frame2)
+                        print "Deseja sair?"
+			blankFrames(frame1)
+			blankFrames(frame2)
+			blankFrames(frame3)
 		else:
 		    tkMessageBox.showinfo("Aviso", "Campo vazio")
 	    lbname=Tkinter.Label(frame2, text="Nome:", width=50)
+            global tbname
 	    tbname=Tkinter.Entry(frame2, width=50)
 	    lbage=Tkinter.Label(frame2, text="Idade", width=50)
+            global tbage
 	    tbage=Tkinter.Entry(frame2, width=50)
 	    lbname.pack(fill=Tkinter.X, ipady=10)
 	    tbname.pack(fill=Tkinter.X, ipady=8)
@@ -78,8 +100,7 @@ def app():
 	    btfrm2.pack(fill=Tkinter.Y, ipady=30)
             scam = dao.getStatusCam()
             if scam == True:
-	        btfrm3=Tkinter.Button(frame3, text="Capturar", height=5, width=15, command=getScreen)
-	        btfrm3.pack()
+	        insertButtonVid()
 	elif option.get()==2:
 	    blankFrames(frame2)
 	    def showFields():
@@ -103,6 +124,11 @@ def app():
 
     def getOptionInsert():
         return option.get()
+
+    def insertButtonVid():
+	btfrm3=Tkinter.Button(frame3, text="Capturar", height=5, width=15, command=getScreen)
+	btfrm3.pack()
+	print btfrm3.get_active()
 	
     def insertFaces():
 	rb1 = Tkinter.Radiobutton(frame1, text="Criar novo", variable=option, height=6, width=180, value=1, command=getOptionInsert)
@@ -121,15 +147,13 @@ def app():
 		if findFace != "":
 		    dao.recognition(findFace)
             else:
-		cascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
-                faces = cascade.detectMultiScale(imageGray)
+                faces = faceCascade.detectMultiScale(imageGray)
                 try:
 	            for f in faces:
-                        x, y, w, h = [ v for v in f ]
+			x, y, w, h = [ v for v in f ]
 		        try:
-		            #x, y, w, h = (x-45), (y-40), (w+90), (h+60)
-	                    findFace = cv2.resize(imageGray[y:y+h, x:x+w], (320,243))
-		            #cv2.imwrite("erik"+str(x)+".jpg", findFace)
+		            x, y, w, h = (x-45), (y-40), (w+90), (h+60)
+	                    findFace = cv2.resize(imageGray[y:y+h, x:x+w], (300,300))
 	                    dao.recognition(findFace)
 		        except:
 		            print "Imagem Fora do alcance"

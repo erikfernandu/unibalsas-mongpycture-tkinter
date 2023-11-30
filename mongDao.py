@@ -12,16 +12,21 @@ db = conn.facerecog_database
 peopcol = db.people_collection
 globcol = db.global_collection
 statusCam = False
+insertedPerson=None
 
-if int(globcol.count())==0:
-    globcol.insert({'labels_global': []})
-#    globcol.insert({'images_global': []})
-else:
-    mrecog.recognizer.load('save.xml')
-    mrecog.imagens = pickle.load( open("imagens", "rb"))
+def startUp():
+    if int(globcol.count())==0:
+        globcol.insert({'labels_global': []})
+#        globcol.insert({'images_global': []})
+    else:
+        mrecog.recognizer.load('save.xml')
+        mrecog.imagens = pickle.load( open("imagens", "rb"))
 
-def getStatusCam():
-    return statusCam
+def getInsertedPerson():
+    return insertedPerson
+
+def setInsertedPerson(newUser):
+    insertedPerson=newUser
 
 def getComboNames():
     combolist = []
@@ -34,15 +39,32 @@ def insertData(path, p_name, p_age):
     try:
 	number = int(peopcol.count())+1
 	path_images= [os.path.join(path, f) for f in os.listdir(path)]
-	for x in range(0, len(os.listdir(path))):
+        lab_ = globcol.find()
+        for i in lab_:
+            labels = i['labels_global']
+	labin = len(labels)
+	returnLab = mrecog.prepareImages(path_images, labels, number, 1)
+        for x in range(labin, len(returnLab)):
 	    globcol.update( {}, {'$push': { 'labels_global': number} } )
-	for imagem_atual in path_images:
-	    image = mrecog.prepareImages(imagem_atual)
-	    #globcol.update( {}, {'$push': { 'labels_global': number} } )
-	    #globcol.update( {}, {'$push': { 'images_global': image.tolist()} } )
 	peopcol.insert( { "p_id": number, "p_name": p_name, "p_age": p_age, "p_qntimg": len(os.listdir(path)), "p_insertdate": datetime.datetime.utcnow()} )
     except IOError:
 	tkMessageBox.showinfo("Aviso", "Diretorio Invalido")
+
+def insertDataVid(path_images, p_name, p_age):
+#    q = getInsertedPerson()
+#    if q == None:
+#        number = int(peopcol.count())+1
+#        setInsertPerson(p_name)
+#    else:
+    number = int(peopcol.count())
+    lab_ = globcol.find()
+    for i in lab_:
+        labels = i['labels_global']
+    labin = len(labels)
+    returnLab = mrecog.prepareImages(path_images, labels, number, 2)
+    for x in range(labin, len(returnLab)):
+        globcol.update( {}, {'$push': { 'labels_global': number} } )
+    peopcol.insert( { "p_id": number, "p_name": p_name, "p_age": p_age, "p_qntimg": len(os.listdir(path)), "p_insertdate": datetime.datetime.utcnow()} )
 
 #def updateData(path, p_name):
 #    try:
@@ -57,17 +79,9 @@ def insertData(path, p_name, p_age):
 #        tkMessageBox.showinfo("Aviso", "Diretorio Invalido")
 
 def recognition(findFace):
-    labels = []
-    #images = []
     lab_ = globcol.find()
     for i in lab_:
         labels = i['labels_global']
-    #img_ = globcol.find()
-    #for i in img_:
-    #    j = i['images_global']
-    #    k =np.array(j)
-    #    for l in k:
-    #        images = np.array(l)
     if str(type(findFace)) == "<type 'numpy.ndarray'>":
 	vid_or_pic = 2
     else:

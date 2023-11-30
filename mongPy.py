@@ -9,16 +9,15 @@ faceCascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
 def app():
     dao.startUp()
 
-
     # Frames
-    def blankFrames(frames):
-        slaves = frames.pack_slaves()
+    def blankFrame(frame):
+        slaves = frame.pack_slaves()
         for widget in slaves:
-            widget.pack_forget()
+            widget.destroy()
     def clearFrames():
-	blankFrames(frame1)
-	blankFrames(frame2)
-	blankFrames(frame3)
+	blankFrame(frame1)
+	blankFrame(frame2)
+	blankFrame(frame3)
         closeWebcam()
 
     # Camera
@@ -43,46 +42,63 @@ def app():
 	cap = cv2.VideoCapture(0)
 	cap.set(3, 500)
 	cap.set(4, 300)
-	dao.statusCam = True
-	insertButtonVid()
+	dao.statusCam=True
+	global framebutvid
+	framebutvid = Tkinter.Frame(frame3)
+	framebutvid.pack()
+	insertButtonVid(framebutvid)
 	webcamActivated()
     def closeWebcam():
-	if dao.statusCam == True:
-	    dao.statusCam = False
+	scam = dao.getStatusCam()
+	if scam == True:
+	    dao.statusCam=False
 	    framevideo.destroy()
-	    blankFrames(frame3)
+	    blankFrame(frame3)
 	    cap.release()
+    # Botao Captura
+    def insertButtonVid(framebutvid):
+        try:
+            tbname.get()
+            blankFrame(framebutvid)
+	    btfrm3=Tkinter.Button(framebutvid, text="Capturar", height=5, width=15, command=getScreen)
+	    btfrm3.pack()
+	except:
+	    try:
+                combobox.get()
+                blankFrame(framebutvid)
+	        btfrm3=Tkinter.Button(framebutvid, text="Capturar", height=5, width=15, command=getScreen)
+	        btfrm3.pack()
+	    except:
+	        return 0
 
     def getScreen():
-        faces = faceCascade.detectMultiScale(imageGray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30), flags = cv2.cv.CV_HAAR_SCALE_IMAGE)
+        faces = faceCascade.detectMultiScale(imageGray)
         try:
 	    for f in faces:
                 x, y, w, h = [ v for v in f ]
-	        #if tbname.get()!="" and tbage.get()!="":
-                foundFace = cv2.resize(imageGray[y:y+h, x:x+w], (300,300))
-		dao.insertDataVid(foundFace, tbname.get(), tbage.get())
-	        #cv2.imwrite("erik"+str(x)+".jpg", foundFace)
+	        x, y, w, h = (x-45), (y-40), (w+90), (h+60)
+	        findFace = cv2.resize(imageGray[y:y+h, x:x+w], (300,300))
+                try:
+                    tbname.get()
+                    dao.insertData(findFace, tbname.get(), tbage.get())
+                except:
+	            dao.updateData(findFace, combobox.get())
 	except:
             print "Nao foi possivel capturar a imagem"
 
+    # Frame1
     def selectData():
 	if option.get()==1:
-	    blankFrames(frame2)
+	    blankFrame(frame2)
 	    def showFields():
 		if tbname.get()!="" and tbage.get()!="":
-		    g = dao.getStatusCam()
-		    if g == False:
+		    if not dao.getStatusCam():
 			path = tkFileDialog.askdirectory(parent=mainWin,initialdir="./faces",title='Escolha de diretorio')
 			if path != "":
 			    dao.insertData(path, tbname.get(), tbage.get())
-			    blankFrames(frame1)
-			    blankFrames(frame2)
-			    blankFrames(frame3)
+			    clearFrames()
 		    else:
-                        print "Deseja sair?"
-			blankFrames(frame1)
-			blankFrames(frame2)
-			blankFrames(frame3)
+			clearFrames()
 		else:
 		    tkMessageBox.showinfo("Aviso", "Campo vazio")
 	    lbname=Tkinter.Label(frame2, text="Nome:", width=50)
@@ -98,38 +114,37 @@ def app():
 	    Tkinter.Label(frame2, text=" ").pack(fill=Tkinter.X, ipady=10)
 	    btfrm2=Tkinter.Button(frame2, text="Ok", width=15, command=showFields)
 	    btfrm2.pack(fill=Tkinter.Y, ipady=30)
-            scam = dao.getStatusCam()
-            if scam == True:
-	        insertButtonVid()
+            if dao.getStatusCam()==True:
+	        insertButtonVid(framebutvid)
 	elif option.get()==2:
-	    blankFrames(frame2)
+	    blankFrame(frame2)
 	    def showFields():
 		if combobox.get():
 		    try:
-			if cap.isOpened()==False:
+			if not dao.getStatusCam():
 			    path = tkFileDialog.askdirectory(parent=mainWin,initialdir="./faces",title='Escolha de diretorio')
-			    dao.updateData(path, combobox.get())
-			blankFrames(frame1)
-			blankFrames(frame2)
+                            if path != "":
+			        dao.updateData(path, combobox.get())
+                                clearFrames()
+			else:
+			    clearFrames()
 		    except:
 			return 0			
 		else:
 		    tkMessageBox.showinfo("Aviso", "Campo vazio")
+	    global combobox
 	    combobox = ttk.Combobox(frame2, textvariable="Combo")
 	    combo_ = dao.getComboNames()
 	    combobox['values'] = combo_
 	    combobox.pack(ipady=10, expand = "yes")
 	    btfrm2=Tkinter.Button(frame2, text="Confirmar", command=showFields)
 	    btfrm2.pack(ipady=30, ipadx=33, expand = "yes")
+	    if dao.getStatusCam()==True:
+	        insertButtonVid(framebutvid)
 
     def getOptionInsert():
         return option.get()
 
-    def insertButtonVid():
-	btfrm3=Tkinter.Button(frame3, text="Capturar", height=5, width=15, command=getScreen)
-	btfrm3.pack()
-	print btfrm3.get_active()
-	
     def insertFaces():
 	rb1 = Tkinter.Radiobutton(frame1, text="Criar novo", variable=option, height=6, width=180, value=1, command=getOptionInsert)
 	rb1.pack()
@@ -139,8 +154,9 @@ def app():
 	btfrm1.pack()
 
     def findOutPerson():
-	blankFrames(frame1)
-	blankFrames(frame2)
+	blankFrame(frame1)
+	blankFrame(frame2)
+	blankFrame(framebutvid)
 	try:
 	    if dao.statusCam == False:
 		findFace = tkFileDialog.askopenfilename(parent=mainWin,initialdir="./faces",title='Escolha de arquivo')
@@ -167,6 +183,7 @@ def app():
         mainWin.quit()
 
     mainWin = Tkinter.Tk()
+    global option
     option=Tkinter.IntVar()
     mainWin.title("MonPycture: Facial Recognition")
     mainWin.geometry("750x350+100+100")

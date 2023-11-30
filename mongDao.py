@@ -2,62 +2,79 @@
 
 #Pyctongo Face Detection
 
-import os, tkMessageBox, pymongo, datetime, pickle, mongRecog
+import os, tkMessageBox, pymongo, datetime, pickle
 import mongRecog as mrecog
+import numpy as np
 from pymongo import MongoClient
 
 conn = MongoClient('localhost', 27017)
 db = conn.facerecog_database
 peopcol = db.people_collection
 globcol = db.global_collection
+statusCam = False
 
-if os.path.isfile('save.xml')==True and os.path.isfile('images')==True:
-    mrecog.recognizer.load('save.xml')
-    lab_ = globcol.find()
-    for i in lab_:
-        mrecog.labels = i['labels_global']
-    mrecog.images = pickle.load( open("images", "rb"))
-else:
-    globcol.insert({ 'labels_global': []})
+def startUp():
+    if int(globcol.count())==0:
+        globcol.insert({'labels_global': []})
+    else:
+        mrecog.recognizer.load('save.xml')
+        mrecog.imagens = pickle.load( open("imagens", "rb"))
 
-def insertData(path, p_name, p_age):
-    try:
-	path_images= [os.path.join(path, f) for f in os.listdir(path)]
-	mrecog.trainImages(path_images, int(peopcol.count())+1)
-	for x in range(0, len(os.listdir(path))):
-	    globcol.update( {}, {'$push': { 'labels_global': int(peopcol.count())+1} } )
-	peopcol.insert( { "p_id": int(peopcol.count())+1, "p_name": p_name, "p_age": p_age, "p_qntimg": len(os.listdir(path)), "p_insertdate": datetime.datetime.utcnow()} )
-	return
-    except IOError:
-	tkMessageBox.showinfo("Aviso", "Diretorio Invalido")
+def getStatusCam():
+    return statusCam
 
-def updateData(path, p_name):
-    try:
-	path_images= [os.path.join(path, f) for f in os.listdir(path)]
-	p_id = peopcol.find_one({'p_name': p_name})
-	mrecog.updateTrain(path_images, p_id['p_id'])
-	for x in range(0, len(os.listdir(path))):
-	     globcol.update( {}, {'$push': { 'labels_global': int(p_id['p_id'])} } )
-	peopcol.update_one({"p_id": p_id['p_id']}, {"$set": {"p_qntimg": p_id['p_qntimg']+len(os.listdir(path))}})
-	return
-    except IOError:
-	tkMessageBox.showinfo("Aviso", "Diretorio Invalido")
-    
-def getNames():
+def setStatusCam(on_off):
+    statusCam = on_off
+
+def getComboNames():
     combolist = []
     combo_ = peopcol.find()
     for i in combo_:
 	combolist.append(i['p_name'])
     return combolist
 
+def insertData(path, p_name, p_age):
+    try:
+	number = int(peopcol.count())+1
+	if getStatusCam():
+            path_images= path
+	else:
+            path_images= [os.path.join(path, f) for f in os.listdir(path)]
+        lab_ = globcol.find_one()
+        labels = lab_['labels_global']
+        labin = len(labels)
+	returnQnt = mrecog.prepareImages(path_images, labels, number, getStatusCam())
+	for x in range(labin, returnQnt):
+	    globcol.update( {}, {'$push': { 'labels_global': number} } )
+	peopcol.insert( { "p_id": number, "p_name": p_name, "p_age": p_age, "p_qntimg": returnQnt, "p_insertdate": datetime.datetime.utcnow()} )
+    except IOError:
+	tkMessageBox.showinfo("Aviso", "Diretorio Invalido")
+
+def updateData(path, p_name):
+    try:
+        p_id = peopcol.find_one({'p_name': p_name})
+	if getStatusCam():
+            path_images = path
+        else:
+            path_images= [os.path.join(path, f) for f in os.listdir(path)]
+	returnQnt = mrecog.updateTrain(path_images, p_id['p_id'], getStatusCam())
+        for x in range(0, returnQnt):
+            globcol.update( {}, {'$push': { 'labels_global': int(p_id['p_id'])} } )
+        peopcol.update_one({"p_id": p_id['p_id']}, {"$set": {"p_qntimg": p_id['p_qntimg']+returnQnt}})
+        return
+    except IOError:
+        tkMessageBox.showinfo("Aviso", "Diretorio Invalido")
+
 def recognition(findFace):
-    lab_recognized, conf = mrecog.faceRecognition(findFace)
-    if conf < 80:
-	r = peopcol.find_one({'p_id': lab_recognized})
-	print "Reconhecido o usuario ",r['p_name'], " com precisao de : ",100-conf, "%"
+    lab_ = globcol.find_one()
+    labels = lab_['labels_global']
+    lab_recognized, conf = mrecog.faceRecognition(findFace, labels, getStatusCam())
+    if conf < 100:
+        r = peopcol.find_one({'p_id': lab_recognized})
+        print "Reconhecido o usuario ",r['p_name'], " com precisao de : ",100-conf, "%"
     else:
-	print "Pessoa nao identificada"
+        print "Pessoa nao identificada"
 def saveandexit():
     mrecog.recognizer.save('save.xml')
-    pickle.dump(mrecog.images, open("images","wb"))
+    pickle.dump(mrecog.imagens, open("imagens","wb"))
 
